@@ -2,16 +2,82 @@
   "name": "Checkpoint 1 - Agente Base LogiFlow",
   "nodes": [
     {
-      "parameters": {},
-      "id": "chat-trigger-1",
+      "parameters": {
+        "options": {}
+      },
+      "id": "5f9da0d4-ebdd-43e5-ba90-3d9c17fa2623",
       "name": "When chat message received",
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        -96,
+        -32
+      ],
+      "webhookId": "8a10fd2e-65ba-4f6a-a909-7731b70af68d"
     },
     {
       "parameters": {
-        "agent": "toolsAgent",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1M-PDx98g6UddUlIGh-rUHigolHM1lY-vJUlZz9RhuJU/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "02.leads-inbound",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9ba5abf8-7a31-4e7b-adfc-971f08106c77",
+      "name": "Google Sheets - Registrar Lead",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "jnuGof3SLAKf6c7D",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "banchioenrique@gmail.com",
+        "subject": "=[LogiFlow] Log agente calificador - {{ $now.format('dd/MM/yyyy HH:mm') }}",
+        "message": "=Resultado de ejecucion del AI Agent:\n\n{{ $json.output }}",
+        "options": {}
+      },
+      "id": "f73fc3c4-21fe-458c-8bf0-12652f8d8cac",
+      "name": "Gmail - Log de Observabilidad",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        -32
+      ],
+      "webhookId": "c572300a-7f8b-4736-bd88-ead4f7bb6b5c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "HqoDgDP47qfg7Biu",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "promptType": "define",
         "text": "={{ $json.chatInput }}",
         "options": {
@@ -20,110 +86,102 @@
           "returnIntermediateSteps": true
         }
       },
-      "id": "ai-agent-1",
+      "id": "3ae24190-a3ee-4399-a635-b42e8f2d6642",
       "name": "AI Agent - Calificador LogiFlow",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
-      "position": [500, 300]
+      "position": [
+        176,
+        -32
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
     },
     {
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "claude-haiku-4-5",
-          "mode": "list"
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
         },
         "options": {}
       },
-      "id": "anthropic-model-1",
-      "name": "Anthropic Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.3,
-      "position": [460, 500],
+      "typeVersion": 1.5,
+      "position": [
+        48,
+        176
+      ],
+      "id": "46a5bf8e-9026-4fe3-aabe-6618c8152e27",
+      "name": "Anthropic Chat Model",
       "credentials": {
         "anthropicApi": {
-          "id": "CAMBIAR_ID_CREDENCIAL",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "sheet",
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "CAMBIAR_SHEET_ID",
-          "mode": "list"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "02.leads-inbound",
-          "mode": "list"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "email": "={{ $fromAI('email', 'email del lead') }}",
-            "nombre": "={{ $fromAI('nombre', 'nombre del contacto') }}",
-            "volumen_diario": "={{ $fromAI('volumen_diario', 'cantidad de envios por dia') }}",
-            "tipo_producto": "={{ $fromAI('tipo_producto', 'que producto envia') }}",
-            "codigo_postal": "={{ $fromAI('codigo_postal', 'codigo postal de cobertura') }}",
-            "canal_venta": "={{ $fromAI('canal_venta', 'canal de venta del lead') }}",
-            "servicio_activo": "={{ $fromAI('servicio_activo', 'si ya tiene servicio activo si/no') }}",
-            "modalidad": "={{ $fromAI('modalidad', 'modalidad A o B segun volumen') }}"
-          }
-        },
-        "toolDescription": "Usa esta herramienta SIEMPRE que hayas terminado de recolectar las 5 preguntas de calificacion de un lead (volumen diario, tipo de producto, codigo postal, canal de venta, si tiene servicio activo) y ya calculaste su modalidad (A o B). Registra la ficha del lead en la planilla de Google Sheets '02.leads-inbound'. No la uses antes de tener todos los datos completos. No inventes valores: si falta un dato, volve a preguntarlo en vez de llamar a esta herramienta con campos vacios."
-      },
-      "id": "sheets-tool-1",
-      "name": "Google Sheets - Registrar Lead",
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.5,
-      "position": [700, 500],
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "CAMBIAR_ID_CREDENCIAL",
-          "name": "Google Sheets account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "CAMBIAR_MAIL_SUPERVISOR@gmail.com",
-        "subject": "=[LogiFlow] Log agente calificador - {{ $now.format('dd/MM/yyyy HH:mm') }}",
-        "message": "=Resultado de ejecucion del AI Agent:\n\n{{ $json.output }}",
-        "options": {}
-      },
-      "id": "gmail-log-1",
-      "name": "Gmail - Log de Observabilidad",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [960, 300],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "CAMBIAR_ID_CREDENCIAL",
-          "name": "Gmail account"
+          "id": "PxQNkrv3XQ7eQSlh",
+          "name": "logiflow-apikey"
         }
       }
     }
   ],
+  "pinData": {},
   "connections": {
     "When chat message received": {
-      "main": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "main", "index": 0 }]]
-    },
-    "Anthropic Chat Model": {
-      "ai_languageModel": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "ai_languageModel", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "AI Agent - Calificador LogiFlow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets - Registrar Lead": {
-      "ai_tool": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "ai_tool", "index": 0 }]]
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Calificador LogiFlow",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     },
     "AI Agent - Calificador LogiFlow": {
-      "main": [[{ "node": "Gmail - Log de Observabilidad", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gmail - Log de Observabilidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Calificador LogiFlow",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "pinData": {},
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8d161dba-02cf-42fe-bd64-a6406f1da6b4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6c689d3bad5e0a6871d7d07bb23997ea4fc9788087dc7be1a7ebb6e0d1e17d4e"
+  },
+  "nodeGroups": [],
+  "id": "p3FwCuoYHgoDTggw",
+  "tags": []
 }
