@@ -1,0 +1,129 @@
+{
+  "name": "Checkpoint 1 - Agente Base LogiFlow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "chat-trigger-1",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "ROL: Sos el Asistente de Calificación de Leads de LogiFlow, empresa de logística same day.\n\nAMBITO: Atendes consultas comerciales de potenciales clientes que quieren contratar el servicio de envios same day. No respondes temas ajenos a LogiFlow (soporte tecnico de terceros, consultas legales, temas personales).\n\nOBJETIVO: Calificar al lead haciendo 5 preguntas: 1) volumen diario de envios, 2) tipo de producto que envia, 3) zona/codigo postal de cobertura, 4) canal de venta, 5) si ya tiene un servicio de logistica activo. Con esas respuestas, determinas la modalidad que le corresponde: Modalidad A 'Entrega Punto' (menos de 15 envios/dia, $85 por paquete) o Modalidad B 'Recoleccion en Domicilio' (15 envios/dia o mas, $75 por paquete). Registras el lead calificado en la planilla de Google Sheets.\n\nREGLAS Y ESCALAMIENTO: Nunca inventes tarifas, zonas de cobertura ni politicas: todo dato comercial sale de la herramienta conectada. Si el lead pide un descuento, condicion especial o hace un reclamo, no decidas por tu cuenta: avisa que un asesor humano se va a comunicar. No completes la ficha con datos supuestos: si falta un dato, volve a pedirlo. No uses lenguaje inclusivo con 'x' o '@'.\n\nLIMITES: No tenes permitido cerrar ventas, prometer plazos de entrega exactos fuera de lo documentado, ni ofrecer tarifas distintas a las oficiales.",
+          "maxIterations": 7,
+          "returnIntermediateSteps": true
+        }
+      },
+      "id": "ai-agent-1",
+      "name": "AI Agent - Calificador LogiFlow",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "anthropic-model-1",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [460, 500],
+      "credentials": {
+        "anthropicApi": {
+          "id": "CAMBIAR_ID_CREDENCIAL",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "CAMBIAR_SHEET_ID",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "02.leads-inbound",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $fromAI('email', 'email del lead') }}",
+            "nombre": "={{ $fromAI('nombre', 'nombre del contacto') }}",
+            "volumen_diario": "={{ $fromAI('volumen_diario', 'cantidad de envios por dia') }}",
+            "tipo_producto": "={{ $fromAI('tipo_producto', 'que producto envia') }}",
+            "codigo_postal": "={{ $fromAI('codigo_postal', 'codigo postal de cobertura') }}",
+            "canal_venta": "={{ $fromAI('canal_venta', 'canal de venta del lead') }}",
+            "servicio_activo": "={{ $fromAI('servicio_activo', 'si ya tiene servicio activo si/no') }}",
+            "modalidad": "={{ $fromAI('modalidad', 'modalidad A o B segun volumen') }}"
+          }
+        },
+        "toolDescription": "Usa esta herramienta SIEMPRE que hayas terminado de recolectar las 5 preguntas de calificacion de un lead (volumen diario, tipo de producto, codigo postal, canal de venta, si tiene servicio activo) y ya calculaste su modalidad (A o B). Registra la ficha del lead en la planilla de Google Sheets '02.leads-inbound'. No la uses antes de tener todos los datos completos. No inventes valores: si falta un dato, volve a preguntarlo en vez de llamar a esta herramienta con campos vacios."
+      },
+      "id": "sheets-tool-1",
+      "name": "Google Sheets - Registrar Lead",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [700, 500],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CAMBIAR_ID_CREDENCIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "CAMBIAR_MAIL_SUPERVISOR@gmail.com",
+        "subject": "=[LogiFlow] Log agente calificador - {{ $now.format('dd/MM/yyyy HH:mm') }}",
+        "message": "=Resultado de ejecucion del AI Agent:\n\n{{ $json.output }}",
+        "options": {}
+      },
+      "id": "gmail-log-1",
+      "name": "Gmail - Log de Observabilidad",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [960, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CAMBIAR_ID_CREDENCIAL",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "main", "index": 0 }]]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Google Sheets - Registrar Lead": {
+      "ai_tool": [[{ "node": "AI Agent - Calificador LogiFlow", "type": "ai_tool", "index": 0 }]]
+    },
+    "AI Agent - Calificador LogiFlow": {
+      "main": [[{ "node": "Gmail - Log de Observabilidad", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
